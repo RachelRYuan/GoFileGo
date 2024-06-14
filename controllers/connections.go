@@ -1,10 +1,10 @@
 package configs
 
 import (
+	"GOFILEGO/utils"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/sirupsen/logrus"
-	"go-crud/utils"
 )
 
 func Connection() *gorm.DB {

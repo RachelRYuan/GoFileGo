@@ -1,12 +1,12 @@
 package main
 
 import (
+	"GOFILEGO/configs"
+	"GOFILEGO/routes"
 	"log"
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"go-crud/configs"
-	"go-crud/routes"
 )
 
 func main() {
@@ -23,7 +23,6 @@ func main() {
 		log.Fatalf("Failed to run server: %v", err)
 	}
 }
-
 func SetupAppRouter() *gin.Engine {
 	router := gin.Default()
 

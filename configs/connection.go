@@ -1,24 +1,33 @@
 package configs
 
 import (
+	"GOFILEGO/models"
+	"GOFILEGO/utils"
+
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/sirupsen/logrus"
-	"go-crud/utils"
 )
 
+// Connection establishes a connection to the database using the provided environment variable.
 func Connection() *gorm.DB {
-	databaseURI := make(chan string, 1)
-
-	databaseURI <- utils.GodotEnv("DATABASE_URL_DEV")
+	databaseURI := utils.GodotEnv("DATABASE_URL_DEV")
 
 	db, err := gorm.Open("postgres", databaseURI)
-
 	if err != nil {
-		defer logrus.Info("Connection to Database Failed")
-		logrus.Fatal(err.Error())
+		logrus.Fatalf("Connection to Database Failed: %v", err)
 	} else {
-		logrus.Println("Connection to Database Successfully")
+		logrus.Info("Connection to Database Successfully")
 	}
+
+	// Setup database migrations
+	databaseMigrations(db)
+
 	return db
+}
+
+// databaseMigrations performs the database migrations.
+func databaseMigrations(db *gorm.DB) {
+	db.AutoMigrate(&models.UserEntity{})
+	logrus.Info("Database migrations completed")
 }
