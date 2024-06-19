@@ -12,7 +12,7 @@ import (
 func InitFileRoutes(db *gorm.DB, route *gin.RouterGroup) {
 	fileRepository := filecontrollers.NewFileRepository(db)
 	fileService := filecontrollers.NewFileService(fileRepository)
-	fileHandlers := filehandlers.NewHandler(fileService)
+	fileHanlders := filehandlers.NewCreateHandler(fileService)
 
 	route.POST("/create", fileHandlers.CreateFileHandler)
 	route.GET("/", fileHandlers.GetAllFilesHandler)
