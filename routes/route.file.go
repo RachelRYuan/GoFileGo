@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"GOFILEGO/middlewares"
+
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 
@@ -12,9 +14,12 @@ import (
 func InitFileRoutes(db *gorm.DB, route *gin.RouterGroup) {
 	fileRepository := filecontrollers.NewFileRepository(db)
 	fileService := filecontrollers.NewFileService(fileRepository)
-	fileHanlders := filehandlers.NewCreateHandler(fileService)
+	fileHandlers := filehandlers.NewCreateHandler(fileService)
 
-	route.POST("/create", fileHandlers.CreateFileHandler)
+	// Add auth middleware
+	route.Use(middlewares.Auth())
+
+	route.POST("/create", fileHandlers.CreateHandler)
 	route.GET("/", fileHandlers.GetAllFilesHandler)
-	route.DELETE("/:fileId", fileHandlers.DeleteFileHandler)
+	route.DELETE("/:fileId", fileHandlers.DeleteHandler)
 }

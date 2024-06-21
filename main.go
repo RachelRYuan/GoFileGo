@@ -24,16 +24,18 @@ func main() {
 	}
 }
 func SetupAppRouter() *gin.Engine {
+	db := configs.Connection()
+
 	router := gin.Default()
 
-	// Connect to the database
-	db, err := configs.Connection()
-	if err != nil {
-		log.Fatalf("Failed to connect to the database: %v", err)
-	}
+	gin.SetMode(gin.DebugMode)
 
-	api := router.Group("/api/v1")
+	api := router.Group("api/v1")
+
+	file := api.Group("/file")
+
 	routes.InitAuthRoutes(db, api)
 
+	routes.InitFileRoutes(db, file)Í
 	return router
 }

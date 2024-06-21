@@ -2,77 +2,86 @@ package loginHandler
 
 import (
 	loginAuth "GOFILEGO/controllers/auth-controllers/login"
-	"GOFILEGO/models"
+	"GOFILEGO/controllers/auth-controllers/register"
 	"GOFILEGO/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 	"github.com/sirupsen/logrus"
 )
 
 type handler struct {
-	service   loginAuth.Service
-	validator *validator.Validate
+	service loginAuth.Service
 }
 
+// NewHandlerLogin initializes a new login handler with the given service.
 func NewHandlerLogin(service loginAuth.Service) *handler {
-	return &handler{
-		service:   service,
-		validator: validator.New(),
-	}
+	return &handler{service: service}
 }
 
+// LoginHandler handles user login requests.
 func (h *handler) LoginHandler(ctx *gin.Context) {
 	var input loginAuth.LoginInput
 	if err := ctx.ShouldBindJSON(&input); err != nil {
-		utils.APIResponse(ctx, "Invalid input", http.StatusBadRequest, http.MethodPost, nil)
+		utils.APIResponse(ctx, "Invalid JSON format", http.StatusBadRequest, http.MethodPost, nil)
 		return
 	}
 
-	if err := h.validator.Struct(input); err != nil {
-		validationErrors := err.(validator.ValidationErrors)
-		errorMessages := make(map[string]string)
-		for _, validationError := range validationErrors {
-			switch validationError.Tag() {
-			case "required":
-				errorMessages[validationError.Field()] = validationError.Field() + " is required"
-			case "email":
-				errorMessages[validationError.Field()] = "Invalid email format"
-			default:
-				errorMessages[validationError.Field()] = validationError.Error()
-			}
-		}
-		utils.ValidatorErrorResponse(ctx, http.StatusBadRequest, http.MethodPost, errorMessages)
+	config := gpc.ErrorConfig{
+		Options: []gpc.ErrorMetaConfig{
+			{
+				Tag:     "required",
+				Field:   "Email",
+				Message: "Email is required in the body",
+			},
+			{
+				Tag:     "email",
+				Field:   "Email",
+				Message: "Email format is not valid",
+			},
+			{
+				Tag:     "required",
+				Field:   "Password",
+				Message: "Password is required in the body",
+			},
+		},
+	}
+	errResponse, errCount := utils.GoValidator(&input, config.Options)
+
+	if errCount > 0 {
+		utils.ValidatorErrorResponse(ctx, http.StatusBadRequest, http.MethodPost, errResponse)
 		return
 	}
 
 	resultLogin, errLogin := h.service.LoginService(&input)
-	h.handleLoginResponse(ctx, resultLogin, errLogin)
-}
 
-func (h *handler) handleLoginResponse(ctx *gin.Context, resultLogin *models.UserEntity, errLogin int) {
 	switch errLogin {
 	case http.StatusNotFound:
 		utils.APIResponse(ctx, "User account is not registered", http.StatusNotFound, http.MethodPost, nil)
+		return
+
 	case http.StatusUnauthorized:
 		utils.APIResponse(ctx, "Username or password is wrong", http.StatusForbidden, http.MethodPost, nil)
+		return
+
 	case http.StatusAccepted:
-		h.handleSuccessfulLogin(ctx, resultLogin)
+		accessTokenData := map[string]interface{}{"id": resultLogin.ID, "email": resultLogin.Email}
+		accessToken, errToken := utils.Sign(accessTokenData, "JWT_SECRET", 24*60*60) // 24 hours in seconds
+
+		if errToken != nil {
+			logrus.Error(errToken.Error())
+			utils.APIResponse(ctx, "Failed to generate access token", http.StatusBadRequest, http.MethodPost, nil)
+			return
+		}
+
+		var data register.RegisterResponse
+		utils.ObjectToJson(resultLogin, &data)
+		data.Token = accessToken
+
+		utils.APIResponse(ctx, "Login successfully", http.StatusOK, http.MethodPost, data)
+		return
+
 	default:
 		utils.APIResponse(ctx, "Unknown error occurred", http.StatusInternalServerError, http.MethodPost, nil)
 	}
-}
-
-func (h *handler) handleSuccessfulLogin(ctx *gin.Context, resultLogin *models.UserEntity) {
-	accessTokenData := map[string]interface{}{"id": resultLogin.ID, "email": resultLogin.Email}
-	accessToken, errToken := utils.Sign(accessTokenData, utils.GodotEnv("JWT_SECRET"), 24*60)
-
-	if errToken != nil {
-		logrus.Error(errToken.Error())
-		utils.APIResponse(ctx, "Generate accessToken failed", http.StatusBadRequest, http.MethodPost, nil)
-		return
-	}
-
-	utils.APIResponse(ctx, "Login successfully", http.StatusOK, http.MethodPost, map[string]string{"accessToken": accessToken})
 }
